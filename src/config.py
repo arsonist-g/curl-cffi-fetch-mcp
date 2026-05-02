@@ -29,7 +29,8 @@ class Settings(BaseSettings):
 
     # 允许的域名列表（用逗号分隔，默认允许所有域名）
     # 环境变量格式：ALLOWED_HOSTS=* 或 ALLOWED_HOSTS=domain1.com,domain2.com
-    ALLOWED_HOSTS: List[str] = ["*"]
+    # 注意：使用 str 类型接收环境变量，通过 validator 转换为 List[str]
+    ALLOWED_HOSTS: str = "*"
 
     # curl-cffi 默认配置
     DEFAULT_IMPERSONATE: str = "chrome"  # 默认浏览器类型
@@ -70,7 +71,7 @@ class Settings(BaseSettings):
                 return {}
         return v if isinstance(v, dict) else {}
 
-    @field_validator("ALLOWED_HOSTS", mode="before")
+    @field_validator("ALLOWED_HOSTS", mode="after")
     @classmethod
     def parse_allowed_hosts(cls, v: Any) -> List[str]:
         """解析允许的域名列表
