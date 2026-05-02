@@ -29,8 +29,7 @@ class Settings(BaseSettings):
 
     # 允许的域名列表（用逗号分隔，默认允许所有域名）
     # 环境变量格式：ALLOWED_HOSTS=* 或 ALLOWED_HOSTS=domain1.com,domain2.com
-    # 注意：使用 Union[str, List[str]] 以支持环境变量字符串和列表两种格式
-    ALLOWED_HOSTS: Union[str, List[str]] = "*"
+    ALLOWED_HOSTS: List[str] = ["*"]
 
     # curl-cffi 默认配置
     DEFAULT_IMPERSONATE: str = "chrome"  # 默认浏览器类型

@@ -1,15 +1,16 @@
-name: Build and Push Docker Images
+name: Build and Push Multi-Arch Docker Images
 
 on:
   push:
+    branches: [ main, master ]     # 推送 commit 到 main/master 时自动构建（使用短 SHA）
     tags:
       - 'v*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag for Docker images (e.g., v1.0.0)'
+        description: 'Version tag (e.g. v1.0.0 或自定义版本)'
         required: true
-        default: 'v1.0.0'
+        default: 'latest'
 
 permissions:
   contents: read
@@ -33,6 +34,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # === 关键修复：统一处理小写 + 版本逻辑 ===
+      - name: Prepare variables
+        id: prep
+        run: |
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          REPO_LC=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+          
+          # 版本优先级：手动输入 > tag > commit SHA（短7位）
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION=$(git rev-parse --short HEAD)   # 短 commit SHA，如 c20bc77
+          fi
+
+          echo "OWNER_LC=${OWNER_LC}" >> $GITHUB_ENV
+          echo "REPO_LC=${REPO_LC}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "IMAGE=ghcr.io/${OWNER_LC}/${REPO_LC}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -41,7 +65,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          username: ${{ env.OWNER_LC }}        # 使用小写后的 owner
           password: ${{ github.token }}
 
       - name: Build and push
@@ -53,35 +77,65 @@ jobs:
           cache-to: type=gha,mode=max
           push: true
           provenance: false
-          tags: ghcr.io/${{ github.repository_owner }}/curl-cffi-fetch-mcp:${{ github.event.inputs.version || github.ref_name }}-${{ matrix.arch }}
+          tags: ${{ env.IMAGE }}:${{ env.VERSION }}-${{ matrix.arch }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=curl-cffi Fetch MCP - Web scraping service with MCP and OneAPI support
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
   manifest:
     needs: build
     runs-on: ubuntu-latest
+
     steps:
+      - name: Prepare variables
+        id: prep
+        run: |
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          REPO_LC=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+          
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION=$(echo "${{ github.sha }}" | cut -c1-7)
+          fi
+
+          echo "OWNER_LC=${OWNER_LC}" >> $GITHUB_ENV
+          echo "REPO_LC=${REPO_LC}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "IMAGE=ghcr.io/${OWNER_LC}/${REPO_LC}" >> $GITHUB_ENV
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          username: ${{ env.OWNER_LC }}
           password: ${{ github.token }}
 
       - name: Create and push multi-arch manifest
         run: |
-          VERSION="${{ github.event.inputs.version || github.ref_name }}"
-          IMAGE="ghcr.io/${{ github.repository_owner }}/curl-cffi-fetch-mcp"
+          IMAGE="${{ env.IMAGE }}"
+          VERSION="${{ env.VERSION }}"
 
-          # Create manifest for version tag
+          echo "🚀 Creating multi-arch manifest for ${IMAGE}:${VERSION}"
+
+          # 创建版本 manifest
           docker manifest create ${IMAGE}:${VERSION} \
             ${IMAGE}:${VERSION}-amd64 \
             ${IMAGE}:${VERSION}-arm64
           docker manifest push ${IMAGE}:${VERSION}
 
-          # Create manifest for latest tag
-          docker manifest create ${IMAGE}:latest \
-            ${IMAGE}:${VERSION}-amd64 \
-            ${IMAGE}:${VERSION}-arm64
-          docker manifest push ${IMAGE}:latest
+          # 只有 tag 或手动触发时才更新 :latest
+          if [[ "${{ github.ref_type }}" == "tag" ]] || [[ -n "${{ github.event.inputs.version }}" ]]; then
+            docker manifest create ${IMAGE}:latest \
+              ${IMAGE}:${VERSION}-amd64 \
+              ${IMAGE}:${VERSION}-arm64
+            docker manifest push ${IMAGE}:latest
+            echo "✅ Also updated :latest"
+          fi
+
+          echo "🎉 Success!"
+          echo "   Image: ${IMAGE}:${VERSION} (amd64 + arm64)"
