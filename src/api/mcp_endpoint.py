@@ -6,6 +6,7 @@
 import json
 from typing import Dict, Any, Optional
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from src.config import settings
 from src.core.fetcher import fetch_url
 from src.core.converter import html_to_markdown
@@ -15,7 +16,16 @@ import tiktoken
 
 # 创建 MCP 服务器实例
 # streamable_http_path="/" 让端点直接在挂载点响应，避免路径重定向问题
-mcp = FastMCP("curl-cffi-fetch", json_response=True, streamable_http_path="/")
+# transport_security 配置允许的域名，防止 DNS rebinding 攻击
+mcp = FastMCP(
+    "curl-cffi-fetch",
+    json_response=True,
+    streamable_http_path="/",
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=settings.ALLOWED_HOSTS
+    )
+)
 
 # 创建全局缓存管理器实例（强制启用）
 cache_manager = ContentCacheManager(
