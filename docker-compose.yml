@@ -25,6 +25,9 @@ services:
       - DEFAULT_PROXY=${DEFAULT_PROXY:-}
 
       # 代理池配置
+      # 方式1（推荐）：使用 JSON 文件，需要挂载文件到容器
+      # 方式2：使用 JSON 字符串（单行）
+      - PROXY_POOL_FILE=${PROXY_POOL_FILE:-}
       - PROXY_POOL=${PROXY_POOL:-{}}
 
       # html2text 配置

@@ -1,0 +1,26 @@
+{
+  "sg": {
+    "url": "http://user:pass@sg-proxy.example.com:8080",
+    "description": "新加坡代理"
+  },
+  "cn": {
+    "url": "socks5://user:pass@cn-proxy.example.com:1080",
+    "description": "中国代理"
+  },
+  "us": {
+    "url": "http://user:pass@us-proxy.example.com:8080",
+    "description": "美国代理"
+  },
+  "tw-jk": {
+    "url": "http://user:pass@tw-proxy.example.com:8080",
+    "description": "台湾家庭宽带可用于大陆网站"
+  },
+  "us-jk-pool": {
+    "url": "http://user:pass@us-pool.example.com:8080",
+    "description": "美国家宽代理池，用于网络要求高的非中国大陆网站"
+  },
+  "us-pool": {
+    "url": "http://user:pass@us-pool2.example.com:8080",
+    "description": "美国普通代理池，此代理ip会自动负载均衡，用于绝大多数网站"
+  }
+}

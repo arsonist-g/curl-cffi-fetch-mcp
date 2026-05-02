@@ -37,8 +37,13 @@ class Settings(BaseSettings):
     DEFAULT_TIMEOUT: int = 30  # 默认超时（秒）
     DEFAULT_PROXY: str = ""  # 默认代理标识符（如 "sg", "cn"）
 
-    # 代理池配置（从 .env 读取 JSON 字符串）
-    # 格式：{"标识符": {"url": "代理URL", "description": "描述"}}
+    # 代理池配置
+    # 方式1（推荐）：使用 JSON 文件（支持多行，方便编辑）
+    #   PROXY_POOL_FILE=proxies.json
+    # 方式2：直接使用 JSON 字符串（单行）
+    #   PROXY_POOL='{"sg": {"url": "http://...", "description": "..."}}'
+    # 优先级：PROXY_POOL_FILE > PROXY_POOL
+    PROXY_POOL_FILE: str = ""  # 代理配置文件路径（相对于项目根目录）
     PROXY_POOL: Dict[str, Dict[str, str]] | None = None
 
     # html2text 配置
@@ -60,14 +65,43 @@ class Settings(BaseSettings):
 
     @field_validator("PROXY_POOL", mode="before")
     @classmethod
-    def parse_proxy_pool(cls, v: Any) -> Dict[str, Dict[str, str]]:
-        """解析环境变量中的 JSON 字符串为 dict
+    def parse_proxy_pool(cls, v: Any, info) -> Dict[str, Dict[str, str]]:
+        """解析代理池配置
+
+        优先级：
+        1. PROXY_POOL_FILE 指定的 JSON 文件（支持多行，方便编辑）
+        2. PROXY_POOL 环境变量的 JSON 字符串（单行）
+        3. 空配置 {}
 
         支持格式：
-        1. JSON 字符串（推荐用单引号包裹）：'{"sg": {"url": "http://...", "description": "..."}}'
-        2. 空字符串或 {} 表示无代理
-        3. 已解析的 dict 对象
+        - JSON 文件：{"sg": {"url": "http://...", "description": "..."}}
+        - JSON 字符串：'{"sg": {"url": "http://...", "description": "..."}}'
+        - 空字符串或 {} 表示无代理
         """
+        # 优先读取 PROXY_POOL_FILE
+        proxy_file = info.data.get("PROXY_POOL_FILE", "")
+        if proxy_file:
+            file_path = PROJECT_ROOT / proxy_file
+            if file_path.exists():
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        parsed = json.load(f)
+                        if not isinstance(parsed, dict):
+                            print(f"警告: {proxy_file} 内容不是字典类型: {type(parsed)}")
+                            return {}
+                        print(f"成功从 {proxy_file} 加载 {len(parsed)} 个代理配置")
+                        return parsed
+                except json.JSONDecodeError as e:
+                    print(f"警告: {proxy_file} JSON 解析失败: {e}")
+                    return {}
+                except Exception as e:
+                    print(f"警告: 读取 {proxy_file} 失败: {e}")
+                    return {}
+            else:
+                print(f"警告: PROXY_POOL_FILE 指定的文件不存在: {file_path}")
+                # 文件不存在，继续尝试解析 PROXY_POOL
+
+        # 如果没有文件或文件读取失败，解析 PROXY_POOL 字符串
         if v is None or v == "":
             return {}
         if isinstance(v, str):
