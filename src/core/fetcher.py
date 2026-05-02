@@ -55,7 +55,8 @@ async def fetch_url(
         proxies = {"http": proxy_url, "https": proxy_url}
 
     # 使用 AsyncSession 发送请求
-    async with AsyncSession(impersonate=impersonate) as session:
+    # verify=False 禁用 SSL 证书验证，解决代理服务器证书问题
+    async with AsyncSession(impersonate=impersonate, verify=False) as session:
         response = await session.get(
             url,
             headers=headers,

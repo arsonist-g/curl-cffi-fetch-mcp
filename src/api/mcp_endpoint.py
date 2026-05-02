@@ -20,12 +20,16 @@ import tiktoken
 #   - 如果配置了具体域名，启用保护并使用配置的域名列表
 #   - 如果使用 "*" 或为空，禁用保护（允许所有域名）
 if settings.ALLOWED_HOSTS == ["*"]:
-    # 使用通配符时，完全禁用 DNS rebinding 保护
+    # 使用通配符时，显式禁用 DNS rebinding 保护
+    # 注意：必须使用 enable_dns_rebinding_protection=False，而不是 transport_security=None
+    # 因为 None 会被转换为默认设置，而默认的 allowed_hosts=[] 会拒绝所有请求
     mcp = FastMCP(
         "curl-cffi-fetch",
         json_response=True,
         streamable_http_path="/",
-        transport_security=None
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=False
+        )
     )
 else:
     # 配置了具体域名时，启用保护
