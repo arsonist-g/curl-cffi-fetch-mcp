@@ -16,16 +16,28 @@ import tiktoken
 
 # 创建 MCP 服务器实例
 # streamable_http_path="/" 让端点直接在挂载点响应，避免路径重定向问题
-# transport_security 配置允许的域名，防止 DNS rebinding 攻击
-mcp = FastMCP(
-    "curl-cffi-fetch",
-    json_response=True,
-    streamable_http_path="/",
-    transport_security=TransportSecuritySettings(
-        enable_dns_rebinding_protection=True,
-        allowed_hosts=settings.ALLOWED_HOSTS
+# transport_security 根据 ALLOWED_HOSTS 配置决定是否启用 DNS rebinding 保护
+#   - 如果配置了具体域名，启用保护并使用配置的域名列表
+#   - 如果使用 "*" 或为空，禁用保护（允许所有域名）
+if settings.ALLOWED_HOSTS == ["*"]:
+    # 使用通配符时，完全禁用 DNS rebinding 保护
+    mcp = FastMCP(
+        "curl-cffi-fetch",
+        json_response=True,
+        streamable_http_path="/",
+        transport_security=None
     )
-)
+else:
+    # 配置了具体域名时，启用保护
+    mcp = FastMCP(
+        "curl-cffi-fetch",
+        json_response=True,
+        streamable_http_path="/",
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=settings.ALLOWED_HOSTS
+        )
+    )
 
 # 创建全局缓存管理器实例（强制启用）
 cache_manager = ContentCacheManager(

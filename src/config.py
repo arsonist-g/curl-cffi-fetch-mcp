@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List, Union
 from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # 获取项目根目录（src 的父目录）
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -61,13 +61,29 @@ class Settings(BaseSettings):
     @field_validator("PROXY_POOL", mode="before")
     @classmethod
     def parse_proxy_pool(cls, v: Any) -> Dict[str, Dict[str, str]]:
-        """解析环境变量中的 JSON 字符串为 dict"""
-        if v is None:
+        """解析环境变量中的 JSON 字符串为 dict
+
+        支持格式：
+        1. JSON 字符串（推荐用单引号包裹）：'{"sg": {"url": "http://...", "description": "..."}}'
+        2. 空字符串或 {} 表示无代理
+        3. 已解析的 dict 对象
+        """
+        if v is None or v == "":
             return {}
         if isinstance(v, str):
+            # 去除首尾空白
+            v = v.strip()
+            if not v or v == "{}":
+                return {}
             try:
-                return json.loads(v)
-            except json.JSONDecodeError:
+                parsed = json.loads(v)
+                if not isinstance(parsed, dict):
+                    print(f"警告: PROXY_POOL 解析结果不是字典类型: {type(parsed)}")
+                    return {}
+                return parsed
+            except json.JSONDecodeError as e:
+                print(f"警告: PROXY_POOL JSON 解析失败: {e}")
+                print(f"原始值: {v[:100]}...")
                 return {}
         return v if isinstance(v, dict) else {}
 
@@ -93,11 +109,12 @@ class Settings(BaseSettings):
             return v
         return ["*"]
 
-    model_config = {
-        "env_file_encoding": "utf-8",
-        "case_sensitive": True,  # 环境变量名大小写敏感
-        "extra": "ignore"  # 忽略额外的环境变量
-    }
+    model_config = SettingsConfigDict(
+        env_file=str(PROJECT_ROOT / ".env"),
+        env_file_encoding="utf-8",
+        case_sensitive=True,  # 环境变量名大小写敏感
+        extra="ignore"  # 忽略额外的环境变量
+    )
 
 
 # 全局配置实例
