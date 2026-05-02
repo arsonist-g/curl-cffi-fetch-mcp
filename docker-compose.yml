@@ -7,6 +7,9 @@ services:
     container_name: curl-cffi-fetch-mcp
     ports:
       - "${DOCKER_HOST:-0.0.0.0}:${DOCKER_HOST_PORT:-8000}:${SERVICE_PORT:-8000}"
+    # 如果使用 PROXY_POOL_FILE，需要挂载代理配置文件
+    # volumes:
+    #   - ./proxies.json:/app/proxies.json:ro
     environment:
       # 服务配置
       - SERVICE_HOST=${SERVICE_HOST:-0.0.0.0}

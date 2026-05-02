@@ -202,7 +202,30 @@ cp .env.example .env
 # 编辑 .env 文件，至少设置 API_KEY
 ```
 
-#### 2. 启动服务
+#### 2. 配置代理（可选）
+
+如果需要使用代理池，推荐使用 JSON 文件方式：
+
+```bash
+# 复制代理配置示例
+cp proxies.json.example proxies.json
+
+# 编辑 proxies.json，添加你的代理配置
+# 然后在 .env 中设置：
+# PROXY_POOL_FILE=proxies.json
+```
+
+如果使用 `PROXY_POOL_FILE`，需要在 `docker-compose.yml` 中取消注释 volumes 配置：
+
+```yaml
+services:
+  app:
+    # ... 其他配置 ...
+    volumes:
+      - ./proxies.json:/app/proxies.json:ro  # 挂载代理配置文件（只读）
+```
+
+#### 3. 启动服务
 
 ```bash
 # 启动所有服务（应用 + Redis）
@@ -218,7 +241,7 @@ docker-compose down
 docker-compose down -v
 ```
 
-#### 3. 访问服务
+#### 4. 访问服务
 
 - API 文档：http://localhost:8000/docs
 - 健康检查：http://localhost:8000/health
