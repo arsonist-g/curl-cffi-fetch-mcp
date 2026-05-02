@@ -3,18 +3,21 @@ version: '3.8'
 services:
   # 主应用服务（使用预构建镜像）
   app:
-    image: ghcr.io/gua12345/curl-cffi-fetch-mcp:latest
+    image: ghcr.io/arsonist-g/curl-cffi-fetch-mcp:latest
     container_name: curl-cffi-fetch-mcp
     ports:
-      - "${PORT:-8000}:8000"
+      - "${DOCKER_HOST:-0.0.0.0}:${DOCKER_HOST_PORT:-8000}:${SERVICE_PORT:-8000}"
     environment:
       # 服务配置
-      - HOST=0.0.0.0
-      - PORT=8000
+      - SERVICE_HOST=${SERVICE_HOST:-0.0.0.0}
+      - SERVICE_PORT=${SERVICE_PORT:-8000}
       - DEBUG=${DEBUG:-false}
 
       # 鉴权（必填）
       - API_KEY=${API_KEY:-sk-test}
+
+      # 允许的域名列表
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
 
       # curl-cffi 配置
       - DEFAULT_IMPERSONATE=${DEFAULT_IMPERSONATE:-chrome}

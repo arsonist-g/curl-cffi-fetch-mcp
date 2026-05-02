@@ -8,7 +8,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
@@ -20,12 +20,17 @@ class Settings(BaseSettings):
     """应用配置类"""
 
     # 服务配置
-    HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    SERVICE_HOST: str = "0.0.0.0"
+    SERVICE_PORT: int = 8000
     DEBUG: bool = False
 
     # 鉴权配置
     API_KEY: str = ""  # 必填，从 .env 读取
+
+    # 允许的域名列表（用逗号分隔，默认允许所有域名）
+    # 环境变量格式：ALLOWED_HOSTS=* 或 ALLOWED_HOSTS=domain1.com,domain2.com
+    # 注意：使用 Union[str, List[str]] 以支持环境变量字符串和列表两种格式
+    ALLOWED_HOSTS: Union[str, List[str]] = "*"
 
     # curl-cffi 默认配置
     DEFAULT_IMPERSONATE: str = "chrome"  # 默认浏览器类型
@@ -65,6 +70,28 @@ class Settings(BaseSettings):
             except json.JSONDecodeError:
                 return {}
         return v if isinstance(v, dict) else {}
+
+    @field_validator("ALLOWED_HOSTS", mode="before")
+    @classmethod
+    def parse_allowed_hosts(cls, v: Any) -> List[str]:
+        """解析允许的域名列表
+
+        支持格式：
+        - "*" -> ["*"] (允许所有域名)
+        - "domain1.com,domain2.com" -> ["domain1.com", "domain2.com"]
+        - ["domain1.com", "domain2.com"] -> ["domain1.com", "domain2.com"]
+        """
+        if v is None or v == "":
+            return ["*"]
+        if v == "*":
+            return ["*"]
+        if isinstance(v, str):
+            # 逗号分隔的字符串
+            hosts = [host.strip() for host in v.split(",") if host.strip()]
+            return hosts if hosts else ["*"]
+        if isinstance(v, list):
+            return v
+        return ["*"]
 
     model_config = {
         "env_file_encoding": "utf-8",

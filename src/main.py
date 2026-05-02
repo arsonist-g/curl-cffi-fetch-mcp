@@ -7,6 +7,7 @@ import asyncio
 import contextlib
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.routing import Mount
 from starlette.middleware.base import BaseHTTPMiddleware
 from src.config import settings
@@ -99,6 +100,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 配置 TrustedHost 中间件，允许配置的域名（适用于反向代理场景）
+# 通过环境变量 ALLOWED_HOSTS 配置，默认允许所有域名
+# 示例：ALLOWED_HOSTS=* 或 ALLOWED_HOSTS=domain1.com,domain2.com
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.ALLOWED_HOSTS
+)
+
 # 添加 MCP 鉴权中间件（复用 verify_api_key）
 app.add_middleware(MCPAuthMiddleware)
 
@@ -142,7 +151,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "src.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
+        host=settings.SERVICE_HOST,
+        port=settings.SERVICE_PORT,
         reload=settings.DEBUG
     )
