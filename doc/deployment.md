@@ -52,6 +52,7 @@ python src/main.py
 | `DEFAULT_IMPERSONATE` | 默认浏览器类型 | `chrome` |
 | `DEFAULT_TIMEOUT` | 默认超时时间（秒） | `30` |
 | `DEFAULT_PROXY` | 默认代理配置（支持标识符或完整 URL） | - |
+| `PROXY_POOL_FILE` | 代理池配置文件路径（相对于项目根目录） | - |
 | `PROXY_POOL` | 代理池配置（JSON） | `{}` |
 | `HTML2TEXT_BODY_WIDTH` | Markdown 文本宽度 | `0` |
 | `HTML2TEXT_IGNORE_LINKS` | 忽略链接 | `false` |
@@ -85,34 +86,79 @@ ALLOWED_HOSTS=web-fetch.test.com,api.example.com,localhost
 
 ### 代理池配置
 
-服务支持两种代理使用方式：
+服务支持两种代理配置方式和两种代理使用方式：
 
-#### 方式 1: 代理池映射（推荐用于常用代理）
+#### 配置方式
 
-在 `.env` 中配置代理池（JSON 格式），支持 HTTP、HTTPS 和 SOCKS5 代理。
+**方式 1: 使用 JSON 文件（推荐，支持多行，方便编辑维护）**
+
+1. 复制示例文件：
+```bash
+cp proxies.json.example proxies.json
+```
+
+2. 编辑 `proxies.json`，添加你的代理配置：
+```json
+{
+  "hk": {
+    "url": "http://127.0.0.1:17890",
+    "description": "香港代理"
+  },
+  "sg": {
+    "url": "http://user:pass@sg-proxy.example.com:8080",
+    "description": "新加坡代理"
+  },
+  "us": {
+    "url": "socks5://us-proxy.example.com:1080",
+    "description": "美国代理"
+  }
+}
+```
+
+3. 在 `.env` 中配置文件路径：
+```env
+PROXY_POOL_FILE=proxies.json
+```
+
+**方式 2: 使用环境变量（单行 JSON，适合少量代理）**
+
+在 `.env` 中直接配置（注意：整个 JSON 需要用单引号包裹）：
 
 **基本代理配置**：
 ```env
-PROXY_POOL={"hk": {"url": "http://127.0.0.1:17890", "description": "香港代理"}}
+PROXY_POOL='{"hk": {"url": "http://127.0.0.1:17890", "description": "香港代理"}}'
 ```
 
 **带鉴权的代理配置**：
 ```env
 # HTTP 代理带用户名密码
-PROXY_POOL={"auth_proxy": {"url": "http://username:password@proxy.example.com:8080", "description": "带鉴权的 HTTP 代理"}}
+PROXY_POOL='{"auth_proxy": {"url": "http://username:password@proxy.example.com:8080", "description": "带鉴权的 HTTP 代理"}}'
 
 # SOCKS5 代理带用户名密码
-PROXY_POOL={"socks_proxy": {"url": "socks5://username:password@proxy.example.com:1080", "description": "带鉴权的 SOCKS5 代理"}}
+PROXY_POOL='{"socks_proxy": {"url": "socks5://username:password@proxy.example.com:1080", "description": "带鉴权的 SOCKS5 代理"}}'
 ```
 
 **多代理配置**：
 ```env
-PROXY_POOL={"hk": {"url": "http://hk-proxy:8080", "description": "香港代理"}, "sg": {"url": "http://user:pass@sg-proxy:8080", "description": "新加坡代理"}, "us": {"url": "socks5://us-proxy:1080", "description": "美国代理"}}
+PROXY_POOL='{"hk": {"url": "http://hk-proxy:8080", "description": "香港代理"}, "sg": {"url": "http://user:pass@sg-proxy:8080", "description": "新加坡代理"}, "us": {"url": "socks5://us-proxy:1080", "description": "美国代理"}}'
 ```
 
-#### 方式 2: 直接传入代理 URL（适用于临时或动态代理）
+**配置优先级**：`PROXY_POOL_FILE` > `PROXY_POOL`
 
-无需在 `.env` 中配置，直接在请求中传入完整的代理 URL。
+**注意事项**：
+- `proxies.json` 文件已添加到 `.gitignore`，不会被提交到 Git
+- Docker 部署时，如果使用 `PROXY_POOL_FILE`，需要将文件挂载到容器中
+- 推荐使用 JSON 文件方式，特别是代理数量较多时
+
+#### 使用方式
+
+**方式 1: 代理池映射（推荐用于常用代理）**
+
+在配置文件或环境变量中配置代理池，请求时使用标识符（如 `"hk"`, `"sg"`）。
+
+**方式 2: 直接传入代理 URL（适用于临时或动态代理）**
+
+无需在配置中预先定义，直接在请求中传入完整的代理 URL。
 
 **支持的代理协议**：
 - HTTP: `http://proxy.example.com:8080`

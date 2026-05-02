@@ -115,6 +115,8 @@ curl-cffi-fetch-mcp/
 │   └── api.md                   # API 文档
 ├── .env                         # 环境配置
 ├── .env.example                 # 配置示例
+├── proxies.json                 # 代理配置文件（不提交到 Git）
+├── proxies.json.example         # 代理配置示例
 ├── requirements.txt             # Python 依赖
 └── README.md                    # 项目文档
 ```
