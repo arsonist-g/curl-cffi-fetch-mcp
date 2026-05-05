@@ -68,6 +68,11 @@ curl -X GET "http://localhost:8000/v1/proxies" \
 
 使用浏览器指纹模拟抓取网页并转换为 Markdown。
 
+**智能规则引擎**：
+- 自动匹配已有规则进行精确内容提取
+- 无匹配规则时，使用 AI 自动生成提取规则
+- 规则自动缓存，提升后续抓取效率
+
 **请求**：
 ```bash
 curl -X POST "http://localhost:8000/v1/fetch" \
@@ -388,3 +393,177 @@ CACHE_REDIS_URL=redis://localhost:6379/0
 2. **精确切分**：按 token 边界切分，不会在单词或句子中间截断
 3. **自动清理**：完全读取后 5 分钟内仍可重新访问，之后自动删除
 4. **内存占用**：单个缓存约 100-200KB，100 个并发缓存约 12-20MB
+
+## 智能规则系统
+
+服务内置智能规则引擎，自动优化网页内容提取质量。
+
+### 工作原理
+
+1. **规则匹配**：根据 URL 的 host + path_pattern 匹配已有规则
+2. **AI 生成**：无匹配规则时，使用 AI 分析网页结构并生成提取规则
+3. **规则应用**：使用规则精确提取标题、正文等核心内容
+4. **自动缓存**：生成的规则自动存储，默认有效期 72 小时
+
+### 规则格式
+
+规则使用 JSON 格式定义内容提取逻辑：
+
+```json
+{
+  "title": "h1.article-title",
+  "content": "div.article-content",
+  "exclude": [
+    "header.navbar",
+    "aside.sidebar",
+    "div.ads",
+    "footer"
+  ]
+}
+```
+
+**字段说明**：
+- `title`: 标题的 CSS 选择器
+- `content`: 正文内容的 CSS 选择器
+- `exclude`: 需要排除的元素选择器列表（可选）
+
+### 规则管理接口
+
+#### 1. 查询所有规则
+
+```bash
+curl -X GET "http://localhost:8000/v1/rules" \
+  -H "Authorization: Bearer your-api-key"
+```
+
+**响应示例**：
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "host": "blog.example.com",
+      "path_pattern": "/article/*",
+      "rule_content": {
+        "title": "h1.title",
+        "content": "div.content"
+      },
+      "lifetime_seconds": 259200,
+      "expires_at": 1778238014.033,
+      "usage_count": 5,
+      "source": "curl-cffi-fetch",
+      "created_at": 1777978814.033,
+      "updated_at": 1777978814.033
+    }
+  ],
+  "error": null
+}
+```
+
+#### 2. 查询指定 host 的规则
+
+```bash
+# 查询 host 的所有规则
+curl -X GET "http://localhost:8000/v1/rules/blog.example.com" \
+  -H "Authorization: Bearer your-api-key"
+
+# 精确匹配 host + path_pattern
+curl -X GET "http://localhost:8000/v1/rules/blog.example.com?path_pattern=/article/*" \
+  -H "Authorization: Bearer your-api-key"
+```
+
+#### 3. 创建规则
+
+```bash
+curl -X POST "http://localhost:8000/v1/rules" \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "host": "blog.example.com",
+    "path_pattern": "/article/*",
+    "rule_content": {
+      "title": "h1.article-title",
+      "content": "div.article-body",
+      "exclude": ["aside.sidebar", "div.ads"]
+    },
+    "lifetime_seconds": 259200,
+    "source": "manual"
+  }'
+```
+
+**请求参数**：
+- `host` (必填): 域名
+- `path_pattern` (可选): 路径模式，支持 fnmatch 通配符，默认 `/*`
+- `rule_content` (必填): 规则内容（JSON 对象）
+- `lifetime_seconds` (可选): 规则寿命（秒），默认 259200（72小时）
+- `source` (可选): 规则来源标识，默认 `curl-cffi-fetch`
+
+#### 4. 更新规则
+
+```bash
+curl -X PUT "http://localhost:8000/v1/rules/blog.example.com?path_pattern=/article/*" \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rule_content": {
+      "title": "h1.new-title",
+      "content": "div.new-content"
+    },
+    "lifetime_seconds": 86400
+  }'
+```
+
+**请求参数**：
+- `rule_content` (必填): 新的规则内容
+- `lifetime_seconds` (可选): 新的规则寿命
+
+#### 5. 删除规则
+
+```bash
+# 删除单个规则
+curl -X DELETE "http://localhost:8000/v1/rules/blog.example.com?path_pattern=/article/*" \
+  -H "Authorization: Bearer your-api-key"
+
+# 删除 host 的所有规则
+curl -X DELETE "http://localhost:8000/v1/rules/blog.example.com" \
+  -H "Authorization: Bearer your-api-key"
+```
+
+### 规则匹配逻辑
+
+1. **精确匹配**：优先匹配 host + path_pattern 完全相同的规则
+2. **通配符匹配**：支持 fnmatch 风格的通配符
+   - `*` 匹配任意字符
+   - `?` 匹配单个字符
+   - `[abc]` 匹配字符集
+3. **最长匹配**：多个规则匹配时，选择 path_pattern 最长（最具体）的规则
+
+**匹配示例**：
+- URL: `https://blog.example.com/article/123`
+- 规则 1: `blog.example.com` + `/*` → 匹配
+- 规则 2: `blog.example.com` + `/article/*` → 匹配（优先使用，更具体）
+- 规则 3: `blog.example.com` + `/news/*` → 不匹配
+
+### AI 规则生成配置
+
+规则自动生成需要配置 AI API（支持 OpenAI 兼容接口）：
+
+```env
+AI_API_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=your-openai-api-key
+AI_MODEL=gpt-4o-mini
+AI_MAX_TOKENS=4096
+```
+
+**配置说明**：
+- `AI_API_BASE_URL`: OpenAI 兼容 API 地址
+- `AI_API_KEY`: API 密钥
+- `AI_MODEL`: 使用的模型（推荐 gpt-4o-mini 或 gpt-4o）
+- `AI_MAX_TOKENS`: 最大输出 tokens，同时作为 HTML token 阈值
+
+**未配置 AI 时**：
+- 规则匹配正常工作
+- 无匹配规则时回退到通用 HTML 转换
+- 不影响基础抓取功能
+

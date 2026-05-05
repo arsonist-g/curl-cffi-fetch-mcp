@@ -9,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from src.config import settings
 from src.core.fetcher import fetch_url
-from src.core.converter import html_to_markdown
+from src.core.rule_engine import convert as rule_engine_convert
 from src.core.cache import ContentCacheManager, count_tokens
 import tiktoken
 
@@ -116,13 +116,8 @@ async def fetch_url_tool(
         if status_code >= 400:
             return f"Error: HTTP {status_code} - 请求失败"
 
-        # 转换为 Markdown
-        markdown = html_to_markdown(
-            html_content,
-            body_width=settings.HTML2TEXT_BODY_WIDTH,
-            ignore_links=settings.HTML2TEXT_IGNORE_LINKS,
-            ignore_images=settings.HTML2TEXT_IGNORE_IMAGES
-        )
+        # 使用规则引擎转换为 Markdown（自动匹配规则或生成新规则）
+        markdown = await rule_engine_convert(html_content, url)
 
         # 检查内容大小，超过阈值则缓存
         encoding = tiktoken.get_encoding("cl100k_base")

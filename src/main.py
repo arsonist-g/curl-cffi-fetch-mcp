@@ -13,6 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from src.config import settings
 from src.auth import verify_api_key
 from src.api.oneapi_endpoint import router as oneapi_router
+from src.api.rule_endpoint import router as rule_router
 from src.api.mcp_endpoint import mcp, cache_manager
 
 
@@ -118,6 +119,9 @@ app.router.routes.append(Mount("/mcp", app=mcp.streamable_http_app()))
 # 注册 OneAPI 路由
 app.include_router(oneapi_router)
 
+# 注册规则管理路由
+app.include_router(rule_router)
+
 # 健康检查端点
 @app.get("/health")
 async def health_check():
@@ -140,6 +144,10 @@ async def root():
             "mcp": "/mcp (MCP Streamable HTTP)",
             "oneapi_proxies": "GET /v1/proxies",
             "oneapi_fetch": "POST /v1/fetch",
+            "rules_list": "GET /v1/rules",
+            "rules_create": "POST /v1/rules",
+            "rules_update": "PUT /v1/rules/{host}",
+            "rules_delete": "DELETE /v1/rules/{host}",
             "health": "GET /health",
             "docs": "GET /docs"
         },

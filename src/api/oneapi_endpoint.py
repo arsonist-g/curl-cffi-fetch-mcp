@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from src.auth import verify_api_key
 from src.config import settings
 from src.core.fetcher import fetch_url
-from src.core.converter import html_to_markdown
+from src.core.rule_engine import convert as rule_engine_convert
 from src.core.headers_generator import get_supported_impersonates
 from src.models.request import FetchRequest
 from src.models.response import OneAPIResponse, FetchResult, ProxyInfo
@@ -143,13 +143,8 @@ async def fetch_webpage(fetch_request: FetchRequest, request: Request):
                 }
             )
 
-        # 转换为 Markdown
-        markdown = html_to_markdown(
-            html_content,
-            body_width=settings.HTML2TEXT_BODY_WIDTH,
-            ignore_links=settings.HTML2TEXT_IGNORE_LINKS,
-            ignore_images=settings.HTML2TEXT_IGNORE_IMAGES
-        )
+        # 使用规则引擎转换为 Markdown（自动匹配规则或生成新规则）
+        markdown = await rule_engine_convert(html_content, fetch_request.url)
 
         # 构建响应数据
         result = FetchResult(

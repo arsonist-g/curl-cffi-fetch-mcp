@@ -6,6 +6,7 @@
 
 - **双协议支持**：MCP Streamable HTTP + OneAPI REST API
 - **浏览器指纹模拟**：使用 curl-cffi 的 `impersonate` 特性绕过反爬虫检测
+- **智能规则引擎**：AI 自动生成内容提取规则，精确提取标题和正文
 - **HTML 转 Markdown**：自动将网页内容转换为 Markdown 格式
 - **智能缓存机制**：Token 感知的分块读取，避免大内容导致 token 溢出
 - **灵活配置**：三层配置优先级（代码默认 < .env < 请求参数）
@@ -99,17 +100,28 @@ curl-cffi-fetch-mcp/
 │   ├── core/
 │   │   ├── __init__.py
 │   │   ├── fetcher.py           # 核心抓取逻辑
-│   │   ├── converter.py         # HTML → Markdown 转换
+│   │   ├── html_compressor.py   # HTML 压缩（L0/L1/L2/L3 级别）
 │   │   ├── cache.py             # Token 感知的智能缓存管理
-│   │   └── headers_generator.py # 浏览器指纹信息（动态获取）
+│   │   ├── headers_generator.py # 浏览器指纹信息（动态获取）
+│   │   ├── rule_engine.py       # 规则引擎（规则匹配、AI 生成、内容提取）
+│   │   ├── rule_store.py        # 规则存储层（SQLite）
+│   │   ├── ai_client.py         # AI 客户端（规则生成）
+│   │   └── prompts.py           # AI 提示词模板
 │   ├── api/
 │   │   ├── __init__.py
 │   │   ├── mcp_endpoint.py      # MCP 端点
-│   │   └── oneapi_endpoint.py   # OneAPI 端点
+│   │   ├── oneapi_endpoint.py   # OneAPI 端点
+│   │   └── rule_endpoint.py     # 规则管理端点
 │   └── models/
 │       ├── __init__.py
 │       ├── request.py           # 请求数据模型
 │       └── response.py          # 响应数据模型
+├── test/
+│   ├── test_ai_rule_generation.py        # 规则生成测试
+│   ├── test_rule_crud.py        # 规则 CRUD 测试
+│   └── test_results_rule_crud.md # 测试结果文档
+├── data/
+│   └── rules.db                 # 规则数据库（自动创建）
 ├── doc/
 │   ├── deployment.md            # 部署文档
 │   └── api.md                   # API 文档
@@ -125,7 +137,9 @@ curl-cffi-fetch-mcp/
 
 - **FastAPI 0.135.1**：高性能异步 Web 框架
 - **curl-cffi 0.14.0**：支持浏览器指纹模拟的 HTTP 客户端（37+ 种浏览器指纹）
-- **html2text 2025.4.15**：HTML 到 Markdown 转换
+- **markdownify 1.2.2**：HTML 到 Markdown 转换（忠实转换，不丢失内容）
+- **BeautifulSoup4 4.12.3**：HTML 解析和内容提取
+- **trafilatura 2.1.0**：网页正文提取和清洗（用于通用转换）
 - **pydantic 2.12.5**：数据验证和序列化
 - **pydantic-settings 2.13.1**：类型安全的配置管理
 - **mcp 1.26.0**：MCP 协议 Python SDK

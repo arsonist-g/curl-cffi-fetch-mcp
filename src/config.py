@@ -63,6 +63,16 @@ class Settings(BaseSettings):
     CACHE_TTL_SECONDS: int = 1800  # 未读完缓存的 TTL（30 分钟）
     CACHE_CLEANUP_INTERVAL: int = 300  # 后台清理间隔（5 分钟）
 
+    # AI 规则生成配置
+    AI_API_BASE_URL: str = ""       # OpenAI 兼容 API 地址（如 https://api.openai.com/v1）
+    AI_API_KEY: str = ""            # API Key
+    AI_MODEL: str = "gpt-4o-mini"   # 模型名
+    AI_MAX_TOKENS: int = 4096       # AI 输出 max_tokens；同时作为 HTML token 阈值，超过此值先用 trafilatura 清洗再发 AI
+
+    # 规则配置
+    RULE_DB_PATH: str = "data/rules.db"                     # SQLite 数据库路径
+    RULE_DEFAULT_LIFETIME_SECONDS: int = 259200              # 默认规则寿命（72小时）
+
     @field_validator("PROXY_POOL", mode="before")
     @classmethod
     def parse_proxy_pool(cls, v: Any, info) -> Dict[str, Dict[str, str]]:

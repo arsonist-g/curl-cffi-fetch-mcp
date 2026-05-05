@@ -22,3 +22,8 @@ python-dotenv==1.2.2
 tiktoken==0.8.0
 redis[asyncio]==5.0.0
 
+# HTML 解析和提取
+beautifulsoup4==4.14.3
+lxml==6.1.0
+trafilatura==2.0.0
+markdownify==1.2.2

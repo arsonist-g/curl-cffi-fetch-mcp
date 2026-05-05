@@ -63,6 +63,12 @@ python src/main.py
 | `CACHE_DELETE_DELAY_SECONDS` | 完全读取后延迟删除（秒） | `300` |
 | `CACHE_TTL_SECONDS` | 未读完缓存的 TTL（秒） | `1800` |
 | `CACHE_CLEANUP_INTERVAL` | 后台清理间隔（秒） | `300` |
+| `AI_API_BASE_URL` | AI API 地址（OpenAI 兼容） | - |
+| `AI_API_KEY` | AI API 密钥 | - |
+| `AI_MODEL` | AI 模型名称 | `gpt-4o-mini` |
+| `AI_MAX_TOKENS` | AI 最大输出 tokens | `4096` |
+| `RULE_DB_PATH` | 规则数据库路径 | `data/rules.db` |
+| `RULE_DEFAULT_LIFETIME_SECONDS` | 默认规则寿命（秒） | `259200` |
 
 ### 反向代理配置
 
@@ -188,6 +194,66 @@ curl-cffi 支持 37+ 种浏览器指纹，包括：
 
 **完整列表**：
 通过 `GET /v1/impersonates` 接口查询所有支持的浏览器指纹。
+
+### 智能规则系统配置
+
+服务内置智能规则引擎，自动优化网页内容提取质量。
+
+#### AI 规则生成（可选）
+
+配置 AI API 后，系统可自动分析网页并生成提取规则：
+
+```env
+AI_API_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=your-openai-api-key
+AI_MODEL=gpt-4o-mini
+AI_MAX_TOKENS=4096
+```
+
+**配置说明**：
+- 支持 OpenAI 兼容接口（OpenAI、Azure OpenAI、本地模型等）
+- 推荐使用 `gpt-4o-mini` 或 `gpt-4o` 模型
+- `AI_MAX_TOKENS` 同时作为 HTML token 阈值，超过此值会先用 trafilatura 清洗
+
+**未配置 AI 时**：
+- 规则匹配和手动管理功能正常工作
+- 无匹配规则时回退到通用 HTML 转换
+- 不影响基础抓取功能
+
+#### 规则存储配置
+
+```env
+RULE_DB_PATH=data/rules.db
+RULE_DEFAULT_LIFETIME_SECONDS=259200
+```
+
+**配置说明**：
+- `RULE_DB_PATH`: SQLite 数据库文件路径（相对于项目根目录）
+- `RULE_DEFAULT_LIFETIME_SECONDS`: 默认规则寿命（秒），默认 259200（72小时）
+
+**数据持久化**：
+- 规则存储在 SQLite 数据库中
+- 服务重启后规则保留
+- 支持通过 API 手动管理规则（增删改查）
+
+#### 规则工作流程
+
+1. **抓取请求** → 2. **规则匹配**（基于 host + path_pattern）
+   - 有匹配 → 使用规则提取内容
+   - 无匹配 → 3. **AI 生成规则**（如已配置）→ 4. **规则缓存**
+   - 未配置 AI → 通用 HTML 转换
+
+#### 规则管理
+
+规则支持通过 REST API 进行管理：
+- `GET /v1/rules` - 查询所有规则
+- `GET /v1/rules/{host}` - 查询指定 host 的规则
+- `POST /v1/rules` - 创建规则
+- `PUT /v1/rules/{host}` - 更新规则
+- `DELETE /v1/rules/{host}` - 删除规则
+
+详见 [API 文档](api.md#智能规则系统)。
+
 
 ## Docker 部署
 
